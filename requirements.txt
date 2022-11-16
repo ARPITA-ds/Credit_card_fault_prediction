@@ -3,3 +3,5 @@ gunicorn
 pandas
 sklearn
 numpy
+
+-e .
