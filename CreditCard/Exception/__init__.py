@@ -1,11 +1,11 @@
 import os
 import sys
 
-class CreditCardFaultException(Exception):
+class CreditException(Exception):
     
     def __init__(self, error_message:Exception,error_detail:sys):
         super().__init__(error_message)
-        self.error_message=CreditCardFaultException.get_detailed_error_message(error_message=error_message,
+        self.error_message=CreditException.get_detailed_error_message(error_message=error_message,
                                                                        error_detail=error_detail
                                                                         )
 
@@ -23,7 +23,8 @@ class CreditCardFaultException(Exception):
         error_message = f"""
         Error occured in script: 
         [ {file_name} ] at 
-        try block line number: [{try_block_line_number}] and exception block line number: [{exception_block_line_number}] 
+        try block line number: [{try_block_line_number}] and 
+        exception block line number: [{exception_block_line_number}] 
         error message: [{error_message}]
         """
         return error_message
@@ -33,4 +34,4 @@ class CreditCardFaultException(Exception):
 
 
     def __repr__(self) -> str:
-        return CreditCardFaultException.__name__.str()
+        return CreditException.__name__.str()
