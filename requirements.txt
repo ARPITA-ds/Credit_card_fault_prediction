@@ -5,5 +5,11 @@ sklearn
 numpy
 PyYAML
 six
+scikit-learn
+evidently
+dill
+matplotlib
+
 
 -e .
+

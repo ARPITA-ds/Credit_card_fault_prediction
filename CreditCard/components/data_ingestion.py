@@ -7,7 +7,7 @@ import tarfile
 import numpy as np
 from six.moves import urllib
 import pandas as pd
-from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.model_selection import train_test_split
 
 class DataIngestion:
 
@@ -28,6 +28,9 @@ class DataIngestion:
             #folder location to download file
             tgz_download_dir = self.data_ingestion_config.tgz_download_dir
             
+            if os.path.exists(tgz_download_dir):
+                os.remove(tgz_download_dir)
+
             os.makedirs(tgz_download_dir,exist_ok=True)
 
             Credit_file_name = os.path.basename(download_url)
@@ -71,22 +74,15 @@ class DataIngestion:
             logging.info(f"Reading csv file: [{Credit_file_path}]")
             Credit_data_frame = pd.read_csv(Credit_file_path)
 
-            Credit_data_frame["income_cat"] = pd.cut(
-                Credit_data_frame["median_income"],
-                bins=[0.0, 1.5, 3.0, 4.5, 6.0, np.inf],
-                labels=[1,2,3,4,5]
-            )
+            convert_to_dict = {i:float for i in Credit_data_frame.columns.to_list()}
+            Credit_data_frame = Credit_data_frame.astype(convert_to_dict)
             
 
             logging.info(f"Splitting data into train and test")
             strat_train_set = None
             strat_test_set = None
 
-            split = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
-
-            for train_index,test_index in split.split(Credit_data_frame, Credit_data_frame["income_cat"]):
-                strat_train_set = Credit_data_frame.loc[train_index].drop(["income_cat"],axis=1)
-                strat_test_set = Credit_data_frame.loc[test_index].drop(["income_cat"],axis=1)
+            strat_train_set,strat_test_set = train_test_split(Credit_data_frame)
 
             train_file_path = os.path.join(self.data_ingestion_config.ingested_train_dir,
                                             file_name)
