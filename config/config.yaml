@@ -3,7 +3,12 @@ training_pipeline_config:
   artifact_dir: artifact
 
 data_ingestion_config:
-  dataset_download_url: https://www.kaggle.com/datasets/uciml/default-of-credit-card-clients-dataset?resource=download
+  #dataset_download_url: https://www.kaggle.com/datasets/uciml/default-of-credit-card-clients-dataset
+  dataset_download_url : https://www.kaggle.com/datasets/uciml/default-of-credit-card-clients-dataset/download
+  #dataset_download_url: https://drive.google.com/file/d/1p_gnpn7npDhvaveai2RGscK6yXXg7vRP/view?usp=share_link
+  dataset_download_file_name : UCI_Credit_Card.csv
+  dataset_file_zip : UCI_Credit_Card.csv.zip
+
   raw_data_dir: raw_data
   tgz_download_dir: tgz_data
   ingested_dir: ingested_data

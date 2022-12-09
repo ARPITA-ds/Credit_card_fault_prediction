@@ -24,6 +24,7 @@ class Configuartion:
     def get_data_ingestion_config(self) ->DataIngestionConfig:
         try:
             artifact_dir = self.training_pipeline_config.artifact_dir
+            
             data_ingestion_artifact_dir=os.path.join(
                 artifact_dir,
                 DATA_INGESTION_ARTIFACT_DIR,
@@ -32,6 +33,9 @@ class Configuartion:
             data_ingestion_info = self.config_info[DATA_INGESTION_CONFIG_KEY]
             
             dataset_download_url = data_ingestion_info[DATA_INGESTION_DOWNLOAD_URL_KEY]
+            
+            tgz_file_name=data_ingestion_info[DATA_INGESTION_TGZ_DOWNLOAD_FILE_NAME_KEY]
+
             tgz_download_dir = os.path.join(
                 data_ingestion_artifact_dir,
                 data_ingestion_info[DATA_INGESTION_TGZ_DOWNLOAD_DIR_KEY]
@@ -55,7 +59,8 @@ class Configuartion:
 
 
             data_ingestion_config=DataIngestionConfig(
-                dataset_download_url=dataset_download_url, 
+                dataset_download_url=dataset_download_url,
+                tgz_file_name = tgz_file_name, 
                 tgz_download_dir=tgz_download_dir, 
                 raw_data_dir=raw_data_dir, 
                 ingested_train_dir=ingested_train_dir, 

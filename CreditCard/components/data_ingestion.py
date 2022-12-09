@@ -7,7 +7,9 @@ import tarfile
 import numpy as np
 from six.moves import urllib
 import pandas as pd
+import zipfile,shutil
 from sklearn.model_selection import train_test_split
+from CreditCard.constants import *
 
 class DataIngestion:
 
@@ -20,25 +22,32 @@ class DataIngestion:
             raise CreditException(e,sys)
     
 
-    def download_housing_data(self,) -> str:
+    def download_Credit_data(self,) -> str:
         try:
             #extraction remote url to download dataset
-            download_url = self.data_ingestion_config.dataset_download_url
+            #download_url = self.data_ingestion_config.dataset_download_url
 
             #folder location to download file
             tgz_download_dir = self.data_ingestion_config.tgz_download_dir
+
+            tgz_file_name = self.data_ingestion_config.tgz_file_name
             
             if os.path.exists(tgz_download_dir):
                 os.remove(tgz_download_dir)
 
             os.makedirs(tgz_download_dir,exist_ok=True)
 
-            Credit_file_name = os.path.basename(download_url)
+            #Credit_file_name = os.path.basename(download_url)
 
-            tgz_file_path = os.path.join(tgz_download_dir, Credit_file_name)
+            Source_dir = ROOT_DIR
+            source_file = os.path.join(Source_dir,tgz_file_name)
 
-            logging.info(f"Downloading file from :[{download_url}] into :[{tgz_file_path}]")
-            urllib.request.urlretrieve(download_url, tgz_file_path)
+            shutil.copy(source_file,tgz_download_dir)
+
+            tgz_file_path = os.path.join(tgz_download_dir,tgz_file_name)
+
+           # logging.info(f"Downloading file from :[{download_url}] into :[{tgz_file_path}]")
+            #urllib.request.urlretrieve(download_url, tgz_file_path)
             logging.info(f"File :[{tgz_file_path}] has been downloaded successfully.")
             return tgz_file_path
 
@@ -54,9 +63,19 @@ class DataIngestion:
 
             os.makedirs(raw_data_dir,exist_ok=True)
 
+
             logging.info(f"Extracting tgz file: [{tgz_file_path}] into dir: [{raw_data_dir}]")
-            with tarfile.open(tgz_file_path) as Credit_tgz_file_obj:
-                Credit_tgz_file_obj.extractall(path=raw_data_dir)
+
+            with zipfile.ZipFile(tgz_file_path,'r') as extract:
+                extract.extractall(raw_data_dir)
+
+            file_name = os.listdir(raw_data_dir)[0]
+            Credit_file_path = os.path.join(raw_data_dir,file_name)
+            credit_data_frame = pd.read_csv(Credit_file_path)
+            credit_data_frame.rename(mapper={'default.payment.next.month':"default"},axis=1,inplace=True)
+            credit_data_frame.to_csv(Credit_file_path,index=False)
+            #with tarfile.open(tgz_file_path) as Credit_tgz_file_obj:
+                #Credit_tgz_file_obj.extractall(path=raw_data_dir)
             logging.info(f"Extraction completed")
 
         except Exception as e:
@@ -114,7 +133,7 @@ class DataIngestion:
 
     def initiate_data_ingestion(self)-> DataIngestionArtifact:
         try:
-            tgz_file_path =  self.download_housing_data()
+            tgz_file_path =  self.download_Credit_data()
             self.extract_tgz_file(tgz_file_path=tgz_file_path)
             return self.split_data_as_train_test()
         except Exception as e:

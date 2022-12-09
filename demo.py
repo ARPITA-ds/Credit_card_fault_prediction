@@ -2,12 +2,12 @@ from CreditCard.pipeline.pipeline import Pipeline
 from CreditCard.Exception import CreditException
 from CreditCard.logger import logging
 from CreditCard.config.configuration import Configuartion
-#from housing.component.data_transformation import DataTransformation
-import os
+import os,sys
+
 def main():
     try:
-        config_path = os.path.join("config","config.yaml")
-        pipeline = Pipeline(Configuartion(config_file_path=config_path))
+        #config_path = os.path.join("config","config.yaml")
+        #pipeline = Pipeline(Configuartion(config_file_path=config_path))
         pipeline = Pipeline()
         pipeline.run_pipeline()
         #pipeline.start()
