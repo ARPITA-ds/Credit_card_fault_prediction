@@ -24,8 +24,7 @@ class DataIngestion:
 
     def download_Credit_data(self,) -> str:
         try:
-            #extraction remote url to download dataset
-            #download_url = self.data_ingestion_config.dataset_download_url
+            
 
             #folder location to download file
             tgz_download_dir = self.data_ingestion_config.tgz_download_dir
@@ -37,7 +36,7 @@ class DataIngestion:
 
             os.makedirs(tgz_download_dir,exist_ok=True)
 
-            #Credit_file_name = os.path.basename(download_url)
+           
 
             Source_dir = ROOT_DIR
             source_file = os.path.join(Source_dir,tgz_file_name)
