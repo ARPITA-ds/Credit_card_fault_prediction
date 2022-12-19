@@ -11,7 +11,7 @@ def main():
         pipeline = Pipeline()
         pipeline.run_pipeline()
         #pipeline.start()
-        logging.info("main function execution completed.")
+        #logging.info("main function execution completed.")
         # # data_validation_config = Configuartion().get_data_transformation_config()
         # # print(data_validation_config)
         # schema_file_path=r"D:\Project\machine_learning_project\config\schema.yaml"
@@ -20,6 +20,8 @@ def main():
         # df= DataTransformation.load_data(file_path=file_path,schema_file_path=schema_file_path)
         # print(df.columns)
         # print(df.dtypes)
+        #data_validation_config= Configuartion().get_data_validation_config()
+        #print(data_validation_config)
 
     except Exception as e:
         logging.error(f"{e}")

@@ -45,8 +45,6 @@ class DataIngestion:
 
             tgz_file_path = os.path.join(tgz_download_dir,tgz_file_name)
 
-           # logging.info(f"Downloading file from :[{download_url}] into :[{tgz_file_path}]")
-            #urllib.request.urlretrieve(download_url, tgz_file_path)
             logging.info(f"File :[{tgz_file_path}] has been downloaded successfully.")
             return tgz_file_path
 
@@ -73,8 +71,7 @@ class DataIngestion:
             credit_data_frame = pd.read_csv(Credit_file_path)
             credit_data_frame.rename(mapper={'default.payment.next.month':"default"},axis=1,inplace=True)
             credit_data_frame.to_csv(Credit_file_path,index=False)
-            #with tarfile.open(tgz_file_path) as Credit_tgz_file_obj:
-                #Credit_tgz_file_obj.extractall(path=raw_data_dir)
+            
             logging.info(f"Extraction completed")
 
         except Exception as e:
