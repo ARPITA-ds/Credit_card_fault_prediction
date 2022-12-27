@@ -9,6 +9,7 @@ scikit-learn
 evidently
 dill
 matplotlib
+imblearn
 
 
 -e .
