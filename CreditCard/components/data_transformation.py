@@ -12,6 +12,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
+from imblearn.over_sampling import SMOTE
 import pandas as pd
 
 class DataTransformation:
@@ -79,6 +80,9 @@ class DataTransformation:
             logging.info(f"Splitting input and target feature from training and testing dataframe.")
             input_feature_train_df = train_df.drop(columns=[target_column_name],axis=1)
             target_feature_train_df = train_df[target_column_name]
+            
+            #smote = SMOTE(random_state=11)
+            #input_feature_train_df,target_feature_train_df = smote.fit_resample(input_feature_train_df,target_feature_test_df)
 
             input_feature_test_df = test_df.drop(columns=[target_column_name],axis=1)
             target_feature_test_df = test_df[target_column_name]
