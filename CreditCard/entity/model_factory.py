@@ -1,3 +1,4 @@
+from cmath import log
 import importlib
 from pyexpat import model
 import numpy as np
@@ -10,15 +11,32 @@ from collections import namedtuple
 from typing import List
 from CreditCard.logger import logging
 from sklearn.metrics import r2_score,mean_squared_error,accuracy_score,f1_score
-from CreditCard.entity.model_factory_config import *
-from imblearn.over_sampling import SMOTE
-
 GRID_SEARCH_KEY = 'grid_search'
 MODULE_KEY = 'module'
 CLASS_KEY = 'class'
 PARAM_KEY = 'params'
 MODEL_SELECTION_KEY = 'model_selection'
 SEARCH_PARAM_GRID_KEY = "search_param_grid"
+
+InitializedModelDetail = namedtuple("InitializedModelDetail",
+                                    ["model_serial_number", "model", "param_grid_search", "model_name"])
+
+GridSearchedBestModel = namedtuple("GridSearchedBestModel", ["model_serial_number",
+                                                             "model",
+                                                             "best_model",
+                                                             "best_parameters",
+                                                             "best_score",
+                                                             ])
+
+BestModel = namedtuple("BestModel", ["model_serial_number",
+                                     "model",
+                                     "best_model",
+                                     "best_parameters",
+                                     "best_score", ])
+
+MetricInfoArtifact = namedtuple("MetricInfoArtifact",
+                                ["model_name", "model_object", "train_rmse", "test_rmse", "train_accuracy",
+                                 "test_accuracy", "model_accuracy", "index_number"])
 
 
 
@@ -29,7 +47,7 @@ def evaluate_classification_model(model_list: list, X_train:np.ndarray, y_train:
 def evaluate_regression_model(model_list: list, X_train:np.ndarray, y_train:np.ndarray, X_test:np.ndarray, y_test:np.ndarray, base_accuracy:float=0.6) -> MetricInfoArtifact:
     """
     Description:
-    This function compare multiple regression model return best model
+    This function compare multiple regression model return best modelar
     Params:
     model_list: List of model
     X_train: Training dataset input feature
@@ -57,12 +75,18 @@ def evaluate_regression_model(model_list: list, X_train:np.ndarray, y_train:np.n
             y_test_pred = model.predict(X_test)
 
             #Calculating r squared score on training and testing dataset
-            train_acc = r2_score(y_train, y_train_pred)
-            test_acc = r2_score(y_test, y_test_pred)
+            #train_acc = r2_score(y_train, y_train_pred)
+            #test_acc = r2_score(y_test, y_test_pred)
+
+            train_acc = accuracy_score(y_train,y_train_pred)
+            test_acc = accuracy_score(y_test,y_test_pred)
             
             #Calculating mean squared error on training and testing dataset
-            train_rmse = np.sqrt(mean_squared_error(y_train, y_train_pred))
-            test_rmse = np.sqrt(mean_squared_error(y_test, y_test_pred))
+            #train_rmse = np.sqrt(mean_squared_error(y_train, y_train_pred))
+            #test_rmse = np.sqrt(mean_squared_error(y_test, y_test_pred))
+
+            train_rmse = f1_score(y_train,y_train_pred)
+            test_rmse = f1_score(y_test,y_test_pred)
 
             # Calculating harmonic mean of train_accuracy and test_accuracy
             model_accuracy = (2 * (train_acc * test_acc)) / (train_acc + test_acc)
@@ -138,7 +162,7 @@ def get_sample_model_config_yaml_file(export_dir: str):
 
 
 class ModelFactory:
-    def __init__(self, model_config_path: str = None,):
+    def __init__(self, model_config_path: str = None):
         try:
             self.config: dict = ModelFactory.read_params(model_config_path)
 
@@ -216,8 +240,6 @@ class ModelFactory:
             
             message = f'{">>"* 30} f"Training {type(initialized_model.model).__name__} Started." {"<<"*30}'
             logging.info(message)
-            smote = SMOTE(random_state=11)
-            input_feature,output_feature = smote.fit_resample(input_feature,output_feature)
             grid_search_cv.fit(input_feature, output_feature)
             message = f'{">>"* 30} f"Training {type(initialized_model.model).__name__}" completed {"<<"*30}'
             grid_searched_best_model = GridSearchedBestModel(model_serial_number=initialized_model.model_serial_number,

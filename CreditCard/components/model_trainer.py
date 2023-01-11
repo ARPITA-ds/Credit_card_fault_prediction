@@ -7,8 +7,8 @@ from CreditCard.entity.config_entity import *
 from CreditCard.util.util import load_numpy_array_data,save_object,load_object
 from CreditCard.entity.model_factory import ModelFactory
 from CreditCard.entity.model_factory import evaluate_regression_model
-from CreditCard.entity.model_factory import *
-from CreditCard.entity.model_factory_config import MetricInfoArtifact,GridSearchedBestModel
+from CreditCard.entity.model_factory import InitializedModelDetail,GridSearchedBestModel,BestModel,MetricInfoArtifact,evaluate_regression_model,get_sample_model_config_yaml_file,ModelFactory
+from CreditCard.entity.model_factory_config import MetricInfoArtifact,GridSearchedBestModel,InitializedModelDetail,BestModel
 from CreditCard.entity.model_estimator import CreditEstimatorModel
 from imblearn.over_sampling import SMOTE
 
@@ -36,9 +36,6 @@ class ModelTrainer:
 
             logging.info(f"Splitting training and testing input and target feature")
             x_train,y_train,x_test,y_test = train_array[:,:-1],train_array[:,-1],test_array[:,:-1],test_array[:,-1]
-
-            #smote = SMOTE(random_state=11)
-            #x_train,y_train = smote.fit_resample(x_train,y_train)
             
 
             logging.info(f"Extracting model config file path")
@@ -66,16 +63,14 @@ class ModelTrainer:
             logging.info(f"Best found model on both training and testing dataset.")
             
             preprocessing_obj=  load_object(file_path=self.data_transformation_artifact.preprocessed_object_file_path)
-            
-            print(dir(metric_info))
-
             model_object = metric_info.model_object
+            
 
 
             trained_model_file_path=self.model_trainer_config.trained_model_file_path
-            credit_model = CreditEstimatorModel(preprocessing_object=preprocessing_obj,trained_model_object=model_object)
+            housing_model = CreditEstimatorModel(preprocessing_object=preprocessing_obj,trained_model_object=model_object)
             logging.info(f"Saving model at path: {trained_model_file_path}")
-            save_object(file_path=trained_model_file_path,obj=credit_model)
+            save_object(file_path=trained_model_file_path,obj=housing_model)
 
 
             model_trainer_artifact=  ModelTrainerArtifact(is_trained=True,message="Model Trained successfully",
@@ -95,3 +90,4 @@ class ModelTrainer:
 
     def __del__(self):
         logging.info(f"{'>>' * 30}Model trainer log completed.{'<<' * 30} ")
+
