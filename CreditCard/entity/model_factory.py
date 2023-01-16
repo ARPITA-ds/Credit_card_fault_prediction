@@ -6,6 +6,8 @@ import yaml
 from CreditCard.Exception import CreditException
 import os
 import sys
+from imblearn.over_sampling import SMOTE
+
 
 from collections import namedtuple
 from typing import List
@@ -240,6 +242,9 @@ class ModelFactory:
             
             message = f'{">>"* 30} f"Training {type(initialized_model.model).__name__} Started." {"<<"*30}'
             logging.info(message)
+            smote = SMOTE(random_state=11)
+            input_feature,output_feature = smote.fit_resample(input_feature,output_feature)
+
             grid_search_cv.fit(input_feature, output_feature)
             message = f'{">>"* 30} f"Training {type(initialized_model.model).__name__}" completed {"<<"*30}'
             grid_searched_best_model = GridSearchedBestModel(model_serial_number=initialized_model.model_serial_number,

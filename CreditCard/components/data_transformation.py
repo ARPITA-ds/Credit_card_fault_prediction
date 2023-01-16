@@ -8,12 +8,84 @@ from CreditCard.components import *
 from CreditCard.entity.config_entity import *
 from CreditCard.entity.artifact_entity import *
 import numpy as np
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler,OneHotEncoder
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from imblearn.over_sampling import SMOTE
 import pandas as pd
+from sklearn.base import BaseEstimator,TransformerMixin
+from kneed import KneeLocator
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
+
+class FeatureGenerator(BaseEstimator, TransformerMixin):
+    """custom feature generator class to generate cluster class for the data
+    scaler : StandardScaler clustering using kmeans++ and kneed"""
+
+    def __init__(self, pay_x_columns , Age_column ,bil_amt_columns , pay_amt_columns,limit_bin, encoder= OneHotEncoder(sparse=False)):
+        try:
+            self.cluster = None
+            self.pay_x = pay_x_columns
+            self.age = Age_column
+            self.bill_amt = bil_amt_columns
+            self.pay_amt_columns = pay_amt_columns
+            self.limit_bin = limit_bin
+            self.encoder = encoder
+
+        except Exception as e:
+            raise CreditException(e, sys) from e
+
+
+    def fit(self,X,y=None):
+        data = X.copy()
+        data = pd.DataFrame()
+        pay_feature = lambda x: x if x < 4 else 4
+        for col in self.pay_x:
+            data[col] = X[col].apply(pay_feature)
+        data[self.age]= pd.cut(X[self.age],[20, 25, 30, 35, 40, 50, 60, 80])
+        for col in self.bill_amt:
+            data[col] = pd.cut(X[col],[-350000,-1,0,25000, 75000, 200000, 2000000])
+        for col in self.pay_amt_columns:
+            data[col] = pd.cut(X[col],[-1, 0, 25000, 50000, 100000, 2000000])
+        data[self.limit_bin] =pd.cut(X[self.limit_bin],[5000, 50000, 100000, 150000, 200000, 300000, 400000, 500000, 1100000])
+        [data[col].astype("category")for col in data.columns]
+        data_encoded = self.encoder.fit_transform(data)
+        wcss=[]
+        for i in range(1,11):
+            kmeans=KMeans(n_clusters=i, init='k-means++',random_state=42)
+            kmeans.fit(data_encoded)
+            wcss.append(kmeans.inertia_) 
+
+        kn = KneeLocator(range(1, 11), wcss, curve='convex', direction='decreasing')
+        total_clusters=kn.knee
+        logging.info(f"total cluster :{total_clusters}")
+        self.cluster = KMeans(n_clusters=total_clusters, init='k-means++',random_state=42)
+        self.cluster.fit(data_encoded)
+        return self
+
+
+    def transform(self, X, y=None):
+        try:
+            #self.logger.info("Transforming data")
+            data = pd.DataFrame()
+            pay_feature = lambda x: x if x < 4 else 4
+            for col in self.pay_x:
+                data[col] = X[col].apply(pay_feature)
+            data[self.age]= pd.cut(X[self.age],[20, 25, 30, 35, 40, 50, 60, 80])
+            for col in self.bill_amt:
+                data[col] = pd.cut(X[col],[-350000,-1,0,25000, 75000, 200000, 2000000])
+            for col in self.pay_amt_columns:
+                data[col] = pd.cut(X[col],[-1, 0, 25000, 50000, 100000, 2000000])
+            data[self.limit_bin] =pd.cut(X[self.limit_bin],[5000, 50000, 100000, 150000, 200000, 300000, 400000, 500000, 1100000])
+            [data[col].astype("category")for col in data.columns]
+            data_encoded = self.encoder.transform(data)
+            cluster  = self.cluster.predict(data_encoded)
+            generated_feature = np.c_[data_encoded , cluster]
+            return generated_feature
+        except Exception as e:
+            raise CreditException(e, sys) from e
+
 
 class DataTransformation:
 
@@ -33,48 +105,81 @@ class DataTransformation:
     
     def get_data_transformer_object(self)->ColumnTransformer:
         try:
-            #schema_file_path = self.data_validation_artifcat.schema_file_path
+            pay_x_columns = ['PAY_0', 'PAY_2', 'PAY_3', 'PAY_4', 'PAY_5', 'PAY_6']
+            bill_amt_columns = ['BILL_AMT1', 'BILL_AMT2', 'BILL_AMT3', 'BILL_AMT4', 'BILL_AMT5', 'BILL_AMT6']
+            pay_amt_columns = ['PAY_AMT1', 'PAY_AMT2', 'PAY_AMT3', 'PAY_AMT4', 'PAY_AMT5', 'PAY_AMT6']
+            Age_columns = "AGE"
+            limit_columns = 'LIMIT_BAL'
 
-            #dataset_schema = read_yaml_file(file_path = schema_file_path)
+            preprocessing = Pipeline(steps=[('feature_generator', FeatureGenerator(pay_amt_columns=pay_amt_columns, bil_amt_columns=bill_amt_columns,
+                                                                       pay_x_columns=pay_x_columns,Age_column= Age_columns,
+                                                                      limit_bin=limit_columns))])
+            return preprocessing
 
-            #numerical_columns = dataset_schema[NUMERICAL_COLUMN_KEY]
-
-            num_pipeline = Pipeline(steps=[
-                    ('imputer',SimpleImputer(strategy="median")),
-                    ('scaling',StandardScaler())])
-
-           
-            logging.info(f"Numerical columns: {num_pipeline}")
-
-           # preprocessing = ColumnTransformer(
-           # transformers=[('num_pipeline',num_pipeline,numerical_columns)])
-            return num_pipeline
 
         except Exception as e:
             raise CreditException(e,sys) from e
+
+        #except Exception as e:
+            #raise CreditException(e, sys) from e
+
+            #num_pipeline = Pipeline(steps=[
+                    #('imputer',SimpleImputer(strategy="mean")),
+                    #('scaling',StandardScaler())])
+
+           
+            #logging.info(f"Numerical columns: {num_pipeline}")
+
+           # preprocessing = ColumnTransformer(
+           # transformers=[('num_pipeline',num_pipeline,numerical_columns)])
+            #return num_pipeline
+
+        #except Exception as e:
+            #raise CreditException(e,sys) from e
+
+
+    def over_sample_input(self , df , target_columns ):
+        try :
+            features = df.drop(target_columns , axis=1)
+            target = df[target_columns]
+            scaler = StandardScaler()
+            scaler.fit(features)
+            features_scaled = pd.DataFrame(scaler.transform(features), columns=features.columns)
+            smote_model = SMOTE(sampling_strategy='minority', random_state=1965, k_neighbors=3)
+            over_sampled_trainX, over_sampled_trainY = smote_model.fit_resample(X=features_scaled, y=target)
+            features_over_sampled = pd.DataFrame(scaler.inverse_transform(over_sampled_trainX,) , columns=features.columns)
+            return features_over_sampled , over_sampled_trainY
+        except Exception as e:
+            raise CreditException(e, sys) from e
 
 
     def initiate_data_transformation(self)->DataTransformationArtifact:
         try:
             logging.info(f"Obtaining preprocessing object.")
             preprocessing_obj = self.get_data_transformer_object()
+            schema_file_path = self.data_validation_artifcat.schema_file_path
 
-
+            dataset_schema = read_yaml_file(file_path=schema_file_path)
+            target_column_name = dataset_schema[TARGET_COLUMN_KEY]
+            logging.info(f"target column name")
+            columns_to_cluster = dataset_schema[COLUMNS_TO_CLUSTER_KEY]
             logging.info(f"Obtaining training and test file path.")
+
             train_file_path = self.data_ingestion_artifact.train_file_path
             test_file_path = self.data_ingestion_artifact.test_file_path
             
 
-            schema_file_path = self.data_validation_artifcat.schema_file_path
+           # schema_file_path = self.data_validation_artifcat.schema_file_path
             
             logging.info(f"Loading training and test data as pandas dataframe.")
-            train_df = load_data(file_path=train_file_path, schema_file_path=schema_file_path)
-            
-            test_df = load_data(file_path=test_file_path, schema_file_path=schema_file_path)
+            #train_df = load_data(file_path=train_file_path, schema_file_path=schema_file_path)
+            train_df = pd.read_csv(train_file_path , usecols=columns_to_cluster)
 
-            schema = read_yaml_file(file_path=schema_file_path)
+            test_df = pd.read_csv(test_file_path, usecols=columns_to_cluster)
 
-            target_column_name = schema[TARGET_COLUMN_KEY]
+            #schema = read_yaml_file(file_path=schema_file_path)
+
+           # target_column_name = schema[TARGET_COLUMN_KEY]
 
 
             logging.info(f"Splitting input and target feature from training and testing dataframe.")
