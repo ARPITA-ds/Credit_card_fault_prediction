@@ -1,18 +1,23 @@
-from cmath import log
+
 import importlib
-from pyexpat import model
+from datetime import datetime
 import numpy as np
 import yaml
 from CreditCard.Exception import CreditException
 import os
 import sys
-from imblearn.over_sampling import SMOTE
-
-
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from dataclasses import dataclass
 from collections import namedtuple
 from typing import List
 from CreditCard.logger import logging
-from sklearn.metrics import r2_score,mean_squared_error,accuracy_score,f1_score
+from sklearn.metrics import precision_score , recall_score , f1_score , roc_curve , auc  ,accuracy_score
+
+sns.set('talk', 'whitegrid', 'dark', font_scale=1.5, font='sans-serif',
+        rc={"lines.linewidth": 2, 'grid.linestyle': '--'})
+
 GRID_SEARCH_KEY = 'grid_search'
 MODULE_KEY = 'module'
 CLASS_KEY = 'class'
@@ -36,96 +41,171 @@ BestModel = namedtuple("BestModel", ["model_serial_number",
                                      "best_parameters",
                                      "best_score", ])
 
-MetricInfoArtifact = namedtuple("MetricInfoArtifact",
-                                ["model_name", "model_object", "train_rmse", "test_rmse", "train_accuracy",
-                                 "test_accuracy", "model_accuracy", "index_number"])
+TIMESTAMP = datetime.now().strftime("%Y%m%d%H%M%S")
 
+@dataclass
+class MetricInfoArtifact:
+    def __init__(self, experiment_id: str, model_name: str, model_object: object, train_precision: float, test_precision: float,
+                 train_recall: float, test_recall: float, train_f1: float, test_f1: float, train_accuracy: float, test_accuracy: float,
+                 accuracy_diff: float , model_accuracy : float , model_index : int ):
 
+        self.experiment_id = experiment_id
+        self.model_name = model_name
+        self.model_object = model_object
+        self.train_precision = train_precision
+        self.test_precision = test_precision
+        self.train_recall = train_recall
+        self.test_recall = test_recall
+        self.train_f1 = train_f1
+        self.test_f1 = test_f1
+        self.train_accuracy = train_accuracy
+        self.test_accuracy = test_accuracy
+        self.accuracy_diff = accuracy_diff
+        self.model_accuracy = model_accuracy
+        self.model_index = model_index
 
-def evaluate_classification_model(model_list: list, X_train:np.ndarray, y_train:np.ndarray, X_test:np.ndarray, y_test:np.ndarray, base_accuracy:float=0.6)->MetricInfoArtifact:
-    pass
-
-
-def evaluate_regression_model(model_list: list, X_train:np.ndarray, y_train:np.ndarray, X_test:np.ndarray, y_test:np.ndarray, base_accuracy:float=0.6) -> MetricInfoArtifact:
+def plot_model_report(model_info_artifact: MetricInfoArtifact,
+                      false_positive_rate, true_positivity_rate, model_report_dir: str):
+    """     Plot the model report 
     """
-    Description:
-    This function compare multiple regression model return best modelar
-    Params:
-    model_list: List of model
-    X_train: Training dataset input feature
-    y_train: Training dataset target feature
-    X_test: Testing dataset input feature
-    y_test: Testing dataset input feature
-    return
-    It retured a named tuple
-    
-    MetricInfoArtifact = namedtuple("MetricInfo",
-                                ["model_name", "model_object", "train_rmse", "test_rmse", "train_accuracy",
-                                 "test_accuracy", "model_accuracy", "index_number"])
-    """
+    logging.info("Plotting the model report")
+    data = pd.DataFrame()
+    data['train_precision'] = [model_info_artifact.train_precision]
+    data['test_precision'] = [model_info_artifact.test_precision]
+    data['train_recall'] = [model_info_artifact.train_recall]
+    data['test_recall'] = [model_info_artifact.test_recall]
+    data['train_f1'] = [model_info_artifact.train_f1]
+    data['test_f1'] = [model_info_artifact.test_f1]
+    data['train_accuracy'] = [model_info_artifact.train_accuracy]
+    data['test_accuracy'] = [model_info_artifact.test_accuracy]
+    data['accuracy_diff'] = [model_info_artifact.accuracy_diff]
+    model_name = model_info_artifact.model_name
     try:
-        
-    
-        index_number = 0
-        metric_info_artifact = None
-        for model in model_list:
-            model_name = str(model)  #getting model name based on model object
-            logging.info(f"{'>>'*30}Started evaluating model: [{type(model).__name__}] {'<<'*30}")
-            
-            #Getting prediction for training and testing dataset
+        fpr = false_positive_rate
+        tpr = true_positivity_rate
+        roc_auc = auc(fpr, tpr)
+    except TypeError as e:
+        logging.error(e)
+    if model_report_dir is None:
+        model_report_dir = os.path.join(os.getcwd(), 'model_report')
+    model_report_file_name = f"{model_name}"
+    model_report_file_path = os.path.join(
+        model_report_dir, model_report_file_name)
+    fig, ax = plt.subplots(1, 2, figsize=(15, 12))
+    plt.title(f"Model Report for {model_name}", fontsize=20,
+              fontweight='bold', pad=20, loc='center')
+    bar = sns.barplot(data=data, ax=ax[0])
+    bar.set_xticklabels(bar.get_xticklabels(), rotation=90)
+    try:
+        logging.info(f"ROC AUC Score for {model_name} is {roc_auc}")
+        line = sns.lineplot(
+            x=fpr, y=tpr, ax=ax[1], color='darkorange', lw=2, label='ROC curve (AUC = %0.2f)' % roc_auc)
+        line.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    except Exception as e:
+        logging.error(e)
+    os.makedirs(model_report_dir, exist_ok=True)
+    plt.savefig(model_report_file_path)
+    # plt.show()
+    return model_report_file_path
+
+def evaluate_classification_model(X_train: pd.DataFrame, y_train: pd.DataFrame,
+                                  X_test: pd.DataFrame, y_test: pd.DataFrame, base_accuracy : float  ,report_dir : str,
+                                  estimators: list, is_fitted: bool = False, experiment_id: str = None ) -> List:
+    """
+      Description:
+      This function compare multiple regression model return best model
+      Params:
+      experiment_id: the experiment id
+      estimators: model List 
+      X_train: Training dataset input feature
+      y_train: Training dataset target feature
+      X_test: Testing dataset input feature
+      y_test: Testing dataset input feature
+      return
+      It returned a named tuple
+      MetricInfoArtifact ("model_name", "model_object","train_precision", "test_precision",
+                                                            "train_recall", "test_recall",
+                                                            "train_f1" , "test_f1","model_accuracy", "index_number")
+    """
+    if experiment_id is None:
+        experiment_id = f"{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}"
+    model_dir = os.path.join(report_dir, "model_report")
+    experiment_dir = os.path.join(model_dir, experiment_id)
+    report_dir_list = []
+    model_artifact_list = []
+    try:
+        index = 0 
+        best_model = None
+        for estimator in estimators:
+            model_info_artifact = MetricInfoArtifact(*([None] * 14))
+            model_name = estimator.__class__.__name__
+
+            if not  is_fitted:
+                logging.info(f"fitting {model_name} model")
+                model = estimator.fit(X_train, y_train)
+            else:
+                logging.info(f"evaluating {model_name} model")
+                model = estimator
+            model_info_artifact.model_object = model
+            logging.info(f"predicting {model_name} model")
             y_train_pred = model.predict(X_train)
             y_test_pred = model.predict(X_test)
-
-            #Calculating r squared score on training and testing dataset
-            #train_acc = r2_score(y_train, y_train_pred)
-            #test_acc = r2_score(y_test, y_test_pred)
-
-            train_acc = accuracy_score(y_train,y_train_pred)
-            test_acc = accuracy_score(y_test,y_test_pred)
-            
-            #Calculating mean squared error on training and testing dataset
-            #train_rmse = np.sqrt(mean_squared_error(y_train, y_train_pred))
-            #test_rmse = np.sqrt(mean_squared_error(y_test, y_test_pred))
-
-            train_rmse = f1_score(y_train,y_train_pred)
-            test_rmse = f1_score(y_test,y_test_pred)
-
-            # Calculating harmonic mean of train_accuracy and test_accuracy
-            model_accuracy = (2 * (train_acc * test_acc)) / (train_acc + test_acc)
-            diff_test_train_acc = abs(test_acc - train_acc)
-            
-            #logging all important metric
-            logging.info(f"{'>>'*30} Score {'<<'*30}")
-            logging.info(f"Train Score\t\t Test Score\t\t Average Score")
-            logging.info(f"{train_acc}\t\t {test_acc}\t\t{model_accuracy}")
-
-            logging.info(f"{'>>'*30} Loss {'<<'*30}")
-            logging.info(f"Diff test train accuracy: [{diff_test_train_acc}].") 
-            logging.info(f"Train root mean squared error: [{train_rmse}].")
-            logging.info(f"Test root mean squared error: [{test_rmse}].")
-
-
-            #if model accuracy is greater than base accuracy and train and test score is within certain thershold
-            #we will accept that model as accepted model
-            if model_accuracy >= base_accuracy and diff_test_train_acc < 0.05:
+            try:
+                y_probs = model.predict_proba(X_test)
+                y_probs = y_probs[:, 1]
+                false_positivity_rate, true_positivity_rate,  _ = roc_curve(
+                    y_test, y_probs)
+            except AttributeError:
+                logging.info("AttributeError")
+                false_positivity_rate, true_positivity_rate= 1,1
+            logging.info(f"{model_name} model report")
+            model_info_artifact.model_name = model_name
+            train_precision = precision_score(y_train, y_train_pred)
+            model_info_artifact.train_precision = train_precision
+            test_precision = precision_score(y_test, y_test_pred)
+            model_info_artifact.test_precision = test_precision
+            train_recall = recall_score(y_train, y_train_pred)
+            model_info_artifact.train_recall = train_recall
+            test_recall = recall_score(y_test, y_test_pred)
+            model_info_artifact.test_recall = test_recall
+            train_f1 = f1_score(y_train, y_train_pred)
+            model_info_artifact.train_f1 = train_f1
+            test_f1 = f1_score(y_test, y_test_pred)
+            model_info_artifact.test_f1 = test_f1
+            test_accuracy = accuracy_score(y_true=y_test, y_pred=y_test_pred)
+            train_accuracy = accuracy_score(y_true= y_train , y_pred = y_train_pred)
+            model_info_artifact.test_accuracy = test_accuracy
+            model_info_artifact.train_accuracy = train_accuracy
+            model_accuracy  = (train_accuracy + test_accuracy) / 2
+            model_info_artifact.model_accuracy = model_accuracy
+            diff_test_train_acc= abs(train_accuracy - test_accuracy)
+            model_info_artifact.accuracy_diff = diff_test_train_acc
+            model_info_artifact.model_index = index
+            model_artifact_list.append(model_info_artifact)
+            os.makedirs(experiment_dir, exist_ok=True)
+            logging.info(f"Plotting {model_name} model report")
+            logging.info(f"{model_info_artifact.__dict__}")
+            report_path = plot_model_report(
+                model_info_artifact, false_positivity_rate, true_positivity_rate, experiment_dir )
+            logging.info(f"Model report saved at {report_path}")
+            report_dir_list.append(report_path)
+            if model_accuracy >= base_accuracy and diff_test_train_acc < 0.10:
                 base_accuracy = model_accuracy
-                metric_info_artifact = MetricInfoArtifact(model_name=model_name,
-                                                        model_object=model,
-                                                        train_rmse=train_rmse,
-                                                        test_rmse=test_rmse,
-                                                        train_accuracy=train_acc,
-                                                        test_accuracy=test_acc,
-                                                        model_accuracy=model_accuracy,
-                                                        index_number=index_number)
-
-                logging.info(f"Acceptable model found {metric_info_artifact}. ")
-            index_number += 1
-        if metric_info_artifact is None:
-            logging.info(f"No model found with higher accuracy than base accuracy")
-        return metric_info_artifact
+                best_model = model_info_artifact
+                logging.info(f"{'*' *10} Best model {model_name} {'*' *10}")
+                logging.info(f"Acceptable model score {model_info_artifact.model_accuracy}. ")
+            index += 1
+        if best_model is None:
+            logging.info("No acceptable model found")
+        else:
+            logging.info(f"Acceptable model  name {best_model.model_name}. ")
+            logging.info(f"Acceptable model score {model_info_artifact.model_accuracy}. ")
+            logging.info(f"best model artifact {best_model}")
     except Exception as e:
         raise CreditException(e, sys) from e
+    return best_model
 
+            
 
 def get_sample_model_config_yaml_file(export_dir: str):
     try:
@@ -160,11 +240,11 @@ def get_sample_model_config_yaml_file(export_dir: str):
             yaml.dump(model_config, file)
         return export_file_path
     except Exception as e:
-        raise CreditException(e, sys)
+        raise CreditException(e, sys) from e
 
 
 class ModelFactory:
-    def __init__(self, model_config_path: str = None):
+    def __init__(self, model_config_path: str = None, ):
         try:
             self.config: dict = ModelFactory.read_params(model_config_path)
 
@@ -181,7 +261,7 @@ class ModelFactory:
             raise CreditException(e, sys) from e
 
     @staticmethod
-    def update_property_of_class(instance_ref:object, property_data: dict):
+    def update_property_of_class(instance_ref: object, property_data: dict):
         try:
             if not isinstance(property_data, dict):
                 raise Exception("property_data parameter required to dictionary")
@@ -197,13 +277,13 @@ class ModelFactory:
     def read_params(config_path: str) -> dict:
         try:
             with open(config_path) as yaml_file:
-                config:dict = yaml.safe_load(yaml_file)
+                config: dict = yaml.safe_load(yaml_file)
             return config
         except Exception as e:
             raise CreditException(e, sys) from e
 
     @staticmethod
-    def class_for_name(module_name:str, class_name:str):
+    def class_for_name(module_name: str, class_name: str):
         try:
             # load the module, will raise ImportError if module cannot be loaded
             module = importlib.import_module(module_name)
@@ -217,19 +297,18 @@ class ModelFactory:
     def execute_grid_search_operation(self, initialized_model: InitializedModelDetail, input_feature,
                                       output_feature) -> GridSearchedBestModel:
         """
-        excute_grid_search_operation(): function will perform paramter search operation and
-        it will return you the best optimistic  model with best paramter:
+        execute_grid_search_operation(): function will perform parameter search operation, and
+        it will return you the best optimistic  model with the best parameter:
         estimator: Model object
-        param_grid: dictionary of paramter to perform search operation
-        input_feature: your all input features
+        param_grid: dictionary of parameter to perform search operation
+        input_feature: you're all input features
         output_feature: Target/Dependent features
         ================================================================================
         return: Function will return GridSearchOperation object
         """
         try:
             # instantiating GridSearchCV class
-            
-           
+
             grid_search_cv_ref = ModelFactory.class_for_name(module_name=self.grid_search_cv_module,
                                                              class_name=self.grid_search_class_name
                                                              )
@@ -239,21 +318,25 @@ class ModelFactory:
             grid_search_cv = ModelFactory.update_property_of_class(grid_search_cv,
                                                                    self.grid_search_property_data)
 
-            
-            message = f'{">>"* 30} f"Training {type(initialized_model.model).__name__} Started." {"<<"*30}'
+            message = f'{">>" * 30} f"Training {type(initialized_model.model).__name__} Started." {"<<" * 30}'
             logging.info(message)
-            smote = SMOTE(random_state=11)
-            input_feature,output_feature = smote.fit_resample(input_feature,output_feature)
-
             grid_search_cv.fit(input_feature, output_feature)
-            message = f'{">>"* 30} f"Training {type(initialized_model.model).__name__}" completed {"<<"*30}'
+            message = f'{">>" * 30} f"Training {type(initialized_model.model).__name__}" completed {"<<" * 30}'
             grid_searched_best_model = GridSearchedBestModel(model_serial_number=initialized_model.model_serial_number,
                                                              model=initialized_model.model,
                                                              best_model=grid_search_cv.best_estimator_,
                                                              best_parameters=grid_search_cv.best_params_,
                                                              best_score=grid_search_cv.best_score_
                                                              )
-            
+            message = f'{">>" * 30} f"Training {type(initialized_model.model).__name__} Finished" {"<<" * 30}'
+            logging.info(message)
+            logging.info(f'{">>" * 10} Best model: {">>" * 10}')
+            logging.info(grid_searched_best_model.best_model)
+            logging.info(f'{">>" * 10} Best Score: {">>" * 10}')
+            logging.info(grid_searched_best_model.best_score)
+            logging.info(f'{">>" * 10} Best Params: {">>" * 10}')
+            logging.info(grid_searched_best_model.best_parameters)
+
             return grid_searched_best_model
         except Exception as e:
             raise CreditException(e, sys) from e
@@ -272,7 +355,7 @@ class ModelFactory:
                                                             class_name=model_initialization_config[CLASS_KEY]
                                                             )
                 model = model_obj_ref()
-                
+
                 if PARAM_KEY in model_initialization_config:
                     model_obj_property_data = dict(model_initialization_config[PARAM_KEY])
                     model = ModelFactory.update_property_of_class(instance_ref=model,
@@ -299,10 +382,10 @@ class ModelFactory:
                                                              output_feature) -> GridSearchedBestModel:
         """
         initiate_best_model_parameter_search(): function will perform paramter search operation and
-        it will return you the best optimistic  model with best paramter:
+        it will return you the best optimistic  model with the best parameter:
         estimator: Model object
-        param_grid: dictionary of paramter to perform search operation
-        input_feature: your all input features
+        param_grid: dictionary of parameter to perform search operation
+        input_feature: all input features
         output_feature: Target/Dependent features
         ================================================================================
         return: Function will return a GridSearchOperation
@@ -364,7 +447,7 @@ class ModelFactory:
         except Exception as e:
             raise CreditException(e, sys) from e
 
-    def get_best_model(self, X, y,base_accuracy=0.6) -> BestModel:
+    def get_best_model(self, X, y, base_accuracy=0.6) -> BestModel:
         try:
             logging.info("Started Initializing model from config file")
             initialized_model_list = self.get_initialized_model_list()

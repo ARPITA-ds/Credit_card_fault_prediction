@@ -3,6 +3,7 @@ from CreditCard.Exception import CreditException
 from CreditCard.logger import logging
 from CreditCard.config.configuration import Configuartion
 from CreditCard.components.data_transformation import DataTransformation
+from CreditCard.components.model_trainer import ModelTrainer
 import os,sys
 
 def main():

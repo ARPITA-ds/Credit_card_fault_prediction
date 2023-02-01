@@ -11,6 +11,9 @@ dill
 matplotlib
 imblearn
 kneed
+xgboost
+seaborn
+catboost
 
 
 -e .

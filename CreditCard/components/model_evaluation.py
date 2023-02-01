@@ -7,7 +7,7 @@ import numpy as np
 import os
 import sys
 from CreditCard.util.util import write_yaml_file, read_yaml_file, load_object,load_data
-from CreditCard.entity.model_factory import evaluate_regression_model
+from CreditCard.entity.model_factory import evaluate_classification_model
 
 
 
