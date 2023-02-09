@@ -7,7 +7,7 @@ from CreditCard.constants import *
 import pandas as pd
 from CreditCard.logger import logging
 import pandas as pd
-
+from csv_diff import load_csv, compare
 import os 
 import sys
 import re 
@@ -78,7 +78,7 @@ def save_object(file_path:str,obj):
         raise CreditException(e,sys) from e
 
 
-def load_object(file_path:str):
+def load_object(file_path: str):
     """
     file_path: str
     """
@@ -86,7 +86,7 @@ def load_object(file_path:str):
         with open(file_path, "rb") as file_obj:
             return dill.load(file_obj)
     except Exception as e:
-        raise CreditException(e,sys) from e
+        raise CreditException(e, sys) from e
 
 
 def load_data(file_path: str, schema_file_path: str) -> pd.DataFrame:
@@ -150,3 +150,52 @@ def reduce_mem_usage(df):
     except Exception as e:
         raise CreditException(e, sys) from e
     return df     
+
+
+def  get_last_experiment_data(path : str) -> str:
+    """_summary_ : This function will return the last experiment file name from the given path
+    Args:
+        path (str): the path of the current experiment
+    Returns:
+        str: last experiment file name
+    """
+    last_file = path
+    file_name = os.path.basename(path)
+    logging.info(f"get_the_last_experiment_file_name: {path}")
+    re_pattern = r"\d{14}"
+    dir_name = re.split(re_pattern, path)[0]
+    logging.info(f"dir_name: {dir_name}")
+    list_of_files = []
+    for (root,dirs,files) in os.walk(dir_name, topdown=True):
+        if files != []:
+            for file in files:
+                if file.endswith(file_name):list_of_files.append(os.path.join(root, file))
+                
+    if path in list_of_files:list_of_files.remove(path)
+    if len(list_of_files) != 0:
+        
+        last_file = max(list_of_files, key=os.path.getmtime)
+    return last_file  
+
+
+def compare_two_csv(current_path : str, previous_path : str  , key_columns : str) -> bool:
+    """_summary_ : This function will compare the current and previous csv files and 
+    return True if they are same else False 
+    Save teh dirrence in previous file dir as yaml"""
+    
+    diff = compare(current=load_csv(open(current_path), key=key_columns),
+        previous= load_csv(open(previous_path), key=key_columns))
+    is_diff = sum([len(value) for key, value in diff.items() if value])
+    if is_diff or os.path.samefile(current_path,previous_path):
+        if is_diff:
+            previous_file_name = os.path.basename(previous_path)
+            current_file_name = os.path.basename(current_path)
+            logging.info(f"{previous_file_name} and {current_file_name} are different")
+            diff_path = os.path.join(os.path.dirname(previous_path), f"{previous_file_name}_vs_{current_file_name}_diff.yaml")
+            write_yaml_file(data=diff, file_path=diff_path)
+            logging.info(f"difference is saved in {diff_path}")
+        else:
+            logging.info(f"{current_path} and {previous_path} are same file")
+        return "Different"
+    else:
+        return "same"

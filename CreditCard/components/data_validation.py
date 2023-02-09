@@ -11,6 +11,7 @@ from evidently.model_profile.sections import DataDriftProfileSection
 from evidently.dashboard import Dashboard
 from evidently.dashboard.tabs import DataDriftTab
 import json
+from CreditCard.util.util import *
 
 
 
@@ -134,6 +135,24 @@ class DataValidation:
             return True
         except Exception as e:
             raise CreditException(e,sys) from e
+
+    def get_experiment_status(self, train_file_path ,test_file_path,validated_test_file_path, validated_train_file_path):
+            
+        last_experiment_test_file_path = get_last_experiment_data(validated_test_file_path)
+        last_experiment_train_file_path = get_last_experiment_data(validated_train_file_path)
+        if os.path.exists(last_experiment_train_file_path) :
+            train_diff = compare_two_csv(current_path=train_file_path, previous_path=last_experiment_train_file_path ,
+                                        key_columns="default")
+            test_diff = compare_two_csv(current_path=test_file_path, previous_path=last_experiment_test_file_path,
+                                        key_columns="default")
+            logging.info(f"Train diff: {train_diff}")
+            if train_diff == "same":
+                logging.info("Train file is same content as previous experiment file")
+                return True
+        else:
+            logging.info("No previous experiment file found")
+            return False
+    
 
     def initiate_data_validation(self)->DataValidationArtifact :
         try:

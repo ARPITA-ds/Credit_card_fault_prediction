@@ -1,13 +1,19 @@
-from CreditCard.logger import logging
-from CreditCard.Exception import CreditException
-from CreditCard.entity.config_entity import ModelEvaluationConfig
-from CreditCard.entity.artifact_entity import DataIngestionArtifact,DataValidationArtifact,ModelTrainerArtifact,ModelEvaluationArtifact
-from CreditCard.constants import *
+from re import X
+import pandas as pd
 import numpy as np
+from tenacity import retry
+
+from CreditCard.Exception import CreditException
+from CreditCard.logger import logging
+from CreditCard.entity.config_entity import ModelEvaluationConfig
+from CreditCard.entity.artifact_entity import DataIngestionArtifact, DataValidationArtifact, \
+    ModelTrainerArtifact, ModelEvaluationArtifact
+from CreditCard.constants import *
+from CreditCard.util.util import write_yaml_file, read_yaml_file, load_object , reduce_mem_usage
+from CreditCard.entity.model_factory import evaluate_classification_model
+from CreditCard.entity.model_factory import *
 import os
 import sys
-from CreditCard.util.util import write_yaml_file, read_yaml_file, load_object,load_data
-from CreditCard.entity.model_factory import evaluate_classification_model
 
 
 
@@ -21,6 +27,7 @@ class ModelEvaluation:
         try:
             logging.info(f"{'>>' * 30}Model Evaluation log started.{'<<' * 30} ")
             self.model_evaluation_config = model_evaluation_config
+    
             self.model_trainer_artifact = model_trainer_artifact
             self.data_ingestion_artifact = data_ingestion_artifact
             self.data_validation_artifact = data_validation_artifact
@@ -53,8 +60,7 @@ class ModelEvaluation:
             eval_file_path = self.model_evaluation_config.model_evaluation_file_path
             model_eval_content = read_yaml_file(file_path=eval_file_path)
             model_eval_content = dict() if model_eval_content is None else model_eval_content
-            
-            
+
             previous_best_model = None
             if BEST_MODEL_KEY in model_eval_content:
                 previous_best_model = model_eval_content[BEST_MODEL_KEY]
@@ -90,28 +96,19 @@ class ModelEvaluation:
             test_file_path = self.data_ingestion_artifact.test_file_path
 
             schema_file_path = self.data_validation_artifact.schema_file_path
-
-            train_dataframe = load_data(file_path=train_file_path,
-                                                           schema_file_path=schema_file_path,
-                                                           )
-            test_dataframe = load_data(file_path=test_file_path,
-                                                          schema_file_path=schema_file_path,
-                                                          )
             schema_content = read_yaml_file(file_path=schema_file_path)
             target_column_name = schema_content[TARGET_COLUMN_KEY]
-
-            # target_column
-            logging.info(f"Converting target column into numpy array.")
-            train_target_arr = np.array(train_dataframe[target_column_name])
-            test_target_arr = np.array(test_dataframe[target_column_name])
-            logging.info(f"Conversion completed target column into numpy array.")
-
-            # dropping target column from the dataframe
-            logging.info(f"Dropping target column from the dataframe.")
-            train_dataframe.drop(target_column_name, axis=1, inplace=True)
-            test_dataframe.drop(target_column_name, axis=1, inplace=True)
-            logging.info(f"Dropping target column from the dataframe completed.")
-
+            selected_columns = schema_content[COLUMNS_TO_CLUSTER_KEY]
+            
+            train_df = pd.read_csv(self.data_ingestion_artifact.train_file_path ,usecols=selected_columns)
+            test_df = pd.read_csv(self.data_ingestion_artifact.test_file_path , usecols=selected_columns)
+            train_df = reduce_mem_usage(train_df)
+            test_df = reduce_mem_usage(test_df)
+            X_train = train_df.drop(columns=[target_column_name], axis=1)
+            y_train = train_df[ target_column_name]
+            X_test = test_df.drop(columns=[ target_column_name], axis=1)
+            y_test = test_df[ target_column_name]
+            
             model = self.get_best_model()
 
             if model is None:
@@ -120,17 +117,18 @@ class ModelEvaluation:
                                                                     is_model_accepted=True)
                 self.update_evaluation_report(model_evaluation_artifact)
                 logging.info(f"Model accepted. Model eval artifact {model_evaluation_artifact} created")
+                self.update_evaluation_report(model_evaluation_artifact)
+                logging.info(f"Model accepted. Model eval artifact {model_evaluation_artifact} created")
                 return model_evaluation_artifact
 
             model_list = [model, trained_model_object]
+            report_dir = self.model_evaluation_config.model_evaluation_report_dir
 
-            metric_info_artifact = evaluate_regression_model(model_list=model_list,
-                                                               X_train=train_dataframe,
-                                                               y_train=train_target_arr,
-                                                               X_test=test_dataframe,
-                                                               y_test=test_target_arr,
-                                                               base_accuracy=self.model_trainer_artifact.model_accuracy,
-                                                               )
+            metric_info_artifact = evaluate_classification_model(estimators=model_list, X_train=X_train,
+                                                                            y_train=y_train, X_test=X_test,                                                                            y_test=y_test,
+                                                                            base_accuracy=0.6 , 
+                                                                            report_dir=report_dir,
+                                                                            is_fitted=True)
             logging.info(f"Model evaluation completed. model metric artifact: {metric_info_artifact}")
 
             if metric_info_artifact is None:
@@ -140,7 +138,7 @@ class ModelEvaluation:
                 logging.info(response)
                 return response
 
-            if metric_info_artifact.index_number == 1:
+            if metric_info_artifact.model_index  == 1:
                 model_evaluation_artifact = ModelEvaluationArtifact(evaluated_model_path=trained_model_file_path,
                                                                     is_model_accepted=True)
                 self.update_evaluation_report(model_evaluation_artifact)
@@ -152,6 +150,7 @@ class ModelEvaluation:
                                                                     is_model_accepted=False)
             return model_evaluation_artifact
         except Exception as e:
+            logging.error(e)
             raise CreditException(e, sys) from e
 
     def __del__(self):

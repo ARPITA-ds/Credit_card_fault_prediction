@@ -1,23 +1,24 @@
-
 import importlib
 from datetime import datetime
-import numpy as np
+import pandas as pd 
+from dataclasses import dataclass
+import matplotlib.pyplot as plt
+import seaborn as sns 
 import yaml
 from CreditCard.Exception import CreditException
 import os
 import sys
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from dataclasses import dataclass
 from collections import namedtuple
 from typing import List
 from CreditCard.logger import logging
-from sklearn.metrics import precision_score , recall_score , f1_score , roc_curve , auc  ,accuracy_score
+from CreditCard.entity.model_factory import *
+from sklearn.metrics import precision_score , recall_score , f1_score , roc_curve , auc  , accuracy_score
+
+
+
 
 sns.set('talk', 'whitegrid', 'dark', font_scale=1.5, font='sans-serif',
         rc={"lines.linewidth": 2, 'grid.linestyle': '--'})
-
 GRID_SEARCH_KEY = 'grid_search'
 MODULE_KEY = 'module'
 CLASS_KEY = 'class'
@@ -40,9 +41,7 @@ BestModel = namedtuple("BestModel", ["model_serial_number",
                                      "best_model",
                                      "best_parameters",
                                      "best_score", ])
-
 TIMESTAMP = datetime.now().strftime("%Y%m%d%H%M%S")
-
 @dataclass
 class MetricInfoArtifact:
     def __init__(self, experiment_id: str, model_name: str, model_object: object, train_precision: float, test_precision: float,
@@ -202,10 +201,13 @@ def evaluate_classification_model(X_train: pd.DataFrame, y_train: pd.DataFrame,
             logging.info(f"Acceptable model score {model_info_artifact.model_accuracy}. ")
             logging.info(f"best model artifact {best_model}")
     except Exception as e:
-        raise CreditException(e, sys) from e
+        raise CreditException(e, sys)
     return best_model
 
             
+
+
+
 
 def get_sample_model_config_yaml_file(export_dir: str):
     try:
@@ -240,7 +242,7 @@ def get_sample_model_config_yaml_file(export_dir: str):
             yaml.dump(model_config, file)
         return export_file_path
     except Exception as e:
-        raise CreditException(e, sys) from e
+        raise CreditException(e, sys)
 
 
 class ModelFactory:

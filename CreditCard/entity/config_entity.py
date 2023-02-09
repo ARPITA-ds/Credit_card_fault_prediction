@@ -12,7 +12,9 @@ DataIngestionConfig = namedtuple("DataIngestionConfig",\
 DataValidationConfig = namedtuple("DataValidationConfig", 
 ["schema_file_path",
 "report_file_path",
-"report_page_file_path"])
+"report_page_file_path",
+"data_validated_test_collection" , 
+"data_validated_train_collection"])
 
 DataTransformationConfig = namedtuple("DataTransformationConfig", 
 ["add_bedroom_per_room",
@@ -29,7 +31,8 @@ ModelTrainerConfig = namedtuple("ModelTrainerConfig",
 
 ModelEvaluationConfig = namedtuple("ModelEvaluationConfig", 
 ["model_evaluation_file_path",
-"time_stamp"])
+"time_stamp",
+"model_evaluation_report_dir"])
 
 
 ModelPusherConfig = namedtuple("ModelPusherConfig", 

@@ -88,19 +88,26 @@ class Configuartion:
             data_validation_config[DATA_VALIDATION_SCHEMA_FILE_NAME_KEY]
             )
 
+            report_dir = data_validation_config[DATA_VALIDATION_REPORT_DIR_KEY]
+
             report_file_path = os.path.join(data_validation_artifact_dir,
             data_validation_config[DATA_VALIDATION_REPORT_FILE_NAME_KEY]
             )
 
-            report_page_file_path = os.path.join(data_validation_artifact_dir,
+            report_page_file_path = os.path.join(data_validation_artifact_dir,report_dir,
             data_validation_config[DATA_VALIDATION_REPORT_PAGE_FILE_NAME_KEY]
 
             )
+
+            data_validated_test_collection = data_validation_config[DATA_VALIDATED_TEST_COLLECTION_KEY]
+            data_validated_train_collection = data_validation_config[DATA_VALIDATED_TRAIN_COLLECTION_KEY]
 
             data_validation_config = DataValidationConfig(
                 schema_file_path=schema_file_path,
                 report_file_path=report_file_path,
                 report_page_file_path=report_page_file_path,
+                data_validated_test_collection=data_validated_test_collection,
+                data_validated_train_collection=data_validated_train_collection
             )
             return data_validation_config
         except Exception as e:
@@ -198,7 +205,10 @@ class Configuartion:
 
             model_evaluation_file_path = os.path.join(artifact_dir,
                                                     model_evaluation_config[MODEL_EVALUATION_FILE_NAME_KEY])
+
+            model_evaluation_report_dir = os.path.join(artifact_dir,MODEL_EVALUATION_REPORT_DIR_NAME,self.time_stamp)
             response = ModelEvaluationConfig(model_evaluation_file_path=model_evaluation_file_path,
+                                              model_evaluation_report_dir = model_evaluation_report_dir,
                                             time_stamp=self.time_stamp)
             
             
