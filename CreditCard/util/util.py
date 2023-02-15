@@ -1,19 +1,17 @@
 import yaml
 from CreditCard.Exception import CreditException
-import os,sys
+from CreditCard.logger import logging
+from csv_diff import load_csv, compare
 import numpy as np
 import dill
-from CreditCard.constants import *
 import pandas as pd
-from CreditCard.logger import logging
-import pandas as pd
-from csv_diff import load_csv, compare
 import os 
 import sys
 import re 
 
 
-def write_yaml_file(file_path:str,data:dict=None):
+
+def write_yaml_file(file_path: str, data: dict = None):
     """
     Create yaml file 
     file_path: str
@@ -21,34 +19,38 @@ def write_yaml_file(file_path:str,data:dict=None):
     """
     try:
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path,"w") as yaml_file:
+        with open(file_path, "w") as yaml_file:
             if data is not None:
-                yaml.dump(data,yaml_file)
+                yaml.dump(data, yaml_file)
     except Exception as e:
-        raise CreditException(e,sys)
+        raise CreditException(e, sys)
 
-def read_yaml_file(file_path:str)->dict:
+
+def read_yaml_file(file_path: str) -> dict:
     """
-    Reads a YAML file and returns the contents as a dict.
-    file path:str
+    Reads a YAML file and returns the contents as a dictionary.
+    file_path: str
     """
     try:
-        with open(file_path,"rb") as yaml_file:
+        with open(file_path, 'rb') as yaml_file:
             return yaml.safe_load(yaml_file)
-
     except Exception as e:
-        raise CreditException(e,sys) from e
+        raise CreditException(e, sys) from e
 
 
-def save_numpy_array_data(file_path : str,array:np.array):
+def save_numpy_array_data(file_path: str, array: np.array, allow_pickle=True):
+    """
+    Save numpy array data to file
+    file_path: str location of file to save
+    array: np.array data to save
+    """
     try:
         dir_path = os.path.dirname(file_path)
-        os.makedirs(dir_path,exist_ok=True)
-        with open(file_path,'wb') as file_obj:
-            np.save(file_obj,array)
-
+        os.makedirs(dir_path, exist_ok=True)
+        with open(file_path, 'wb') as file_obj:
+            np.save(file_obj, array)
     except Exception as e:
-        raise CreditException(e,sys) from e
+        raise CreditException(e, sys) from e
 
 
 def load_numpy_array_data(file_path: str) -> np.array:
@@ -59,12 +61,12 @@ def load_numpy_array_data(file_path: str) -> np.array:
     """
     try:
         with open(file_path, 'rb') as file_obj:
-            return np.load(file_obj)
+            return np.load(file_obj, allow_pickle=True)
     except Exception as e:
         raise CreditException(e, sys) from e
 
 
-def save_object(file_path:str,obj):
+def save_object(file_path: str, obj):
     """
     file_path: str
     obj: Any sort of object
@@ -75,7 +77,7 @@ def save_object(file_path:str,obj):
         with open(file_path, "wb") as file_obj:
             dill.dump(obj, file_obj)
     except Exception as e:
-        raise CreditException(e,sys) from e
+        raise CreditException(e, sys) from e
 
 
 def load_object(file_path: str):
@@ -88,30 +90,6 @@ def load_object(file_path: str):
     except Exception as e:
         raise CreditException(e, sys) from e
 
-
-def load_data(file_path: str, schema_file_path: str) -> pd.DataFrame:
-    try:
-        datatset_schema = read_yaml_file(schema_file_path)
-
-        schema = datatset_schema[DATASET_SCHEMA_COLUMNS_KEY]
-
-        dataframe = pd.read_csv(file_path)
-
-        error_messgae = ""
-
-
-        for column in dataframe.columns:
-            if column in list(schema.keys()):
-                dataframe[column].astype(schema[column])
-            else:
-                error_messgae = f"{error_messgae} \nColumn: [{column}] is not in the schema."
-        if len(error_messgae) > 0:
-            raise Exception(error_messgae)
-        return dataframe
-
-    except Exception as e:
-        raise CreditException(e,sys) from e
-    
 
 def reduce_mem_usage(df):
     
@@ -149,8 +127,7 @@ def reduce_mem_usage(df):
         logging.info('Decreased by {:.1f}%'.format(100 * (start_mem - end_mem) / start_mem))
     except Exception as e:
         raise CreditException(e, sys) from e
-    return df     
-
+    return df
 
 def  get_last_experiment_data(path : str) -> str:
     """_summary_ : This function will return the last experiment file name from the given path

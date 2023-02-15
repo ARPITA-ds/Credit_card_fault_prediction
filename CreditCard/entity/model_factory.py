@@ -11,7 +11,6 @@ import sys
 from collections import namedtuple
 from typing import List
 from CreditCard.logger import logging
-from CreditCard.entity.model_factory import *
 from sklearn.metrics import precision_score , recall_score , f1_score , roc_curve , auc  , accuracy_score
 
 
@@ -204,11 +203,6 @@ def evaluate_classification_model(X_train: pd.DataFrame, y_train: pd.DataFrame,
         raise CreditException(e, sys)
     return best_model
 
-            
-
-
-
-
 def get_sample_model_config_yaml_file(export_dir: str):
     try:
         model_config = {
@@ -243,8 +237,6 @@ def get_sample_model_config_yaml_file(export_dir: str):
         return export_file_path
     except Exception as e:
         raise CreditException(e, sys)
-
-
 class ModelFactory:
     def __init__(self, model_config_path: str = None, ):
         try:

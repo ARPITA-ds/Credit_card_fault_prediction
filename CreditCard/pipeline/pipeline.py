@@ -92,6 +92,16 @@ class Pipeline(Thread):
         except Exception as e:
             raise CreditException(e, sys) from e
 
+    def start_model_pusher(self, model_eval_artifact: ModelEvaluationArtifact) -> ModelPusherArtifact:
+        try:
+            model_pusher = ModelPusher(
+                model_pusher_config=self.config.get_model_pusher_config(),
+                model_evaluation_artifact=model_eval_artifact
+            )
+            return model_pusher.initiate_model_pusher()
+        except Exception as e:
+            raise CreditException(e, sys) from e
+
     def run_pipeline(self):
         try:
             if Pipeline.experiment.running_status:
