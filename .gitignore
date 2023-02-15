@@ -7,6 +7,7 @@ __pycache__/
 *.so
 
 CreditCard/artifact
+CREDIT CARD PREDICTION/catboost_info
 
 # Distribution / packaging
 .Python
@@ -111,7 +112,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-catboost_info
+
 # Spyder project settings
 .spyderproject
 .spyproject
