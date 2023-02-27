@@ -11,7 +11,7 @@ from CreditCard.components.data_validation import DataValidation
 from CreditCard.components.data_transformation import DataTransformation
 from CreditCard.components.model_trainer import *
 from CreditCard.entity.model_predictor import *
-from CreditCard.entity.model_factory import * 
+from CreditCard.entity.model_factory import MetricInfoArtifact
 
 
 
