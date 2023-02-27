@@ -5,12 +5,14 @@ from CreditCard.config.configuration import Configuartion
 from CreditCard.constants import *
 from CreditCard.pipeline.pipeline import Pipeline
 
-from CreditCard.entity.model_factory import evaluate_regression_model,ModelFactory
+from CreditCard.entity.model_factory import evaluate_classification_model,ModelFactory
 from CreditCard.components.data_ingestion import DataIngestion
 from CreditCard.components.data_validation import DataValidation
 from CreditCard.components.data_transformation import DataTransformation
-from CreditCard.entity.model_estimator import CreditEstimatorModel
-from CreditCard.entity.model_predictor import ProjectData
+from CreditCard.components.model_trainer import *
+from CreditCard.entity.model_predictor import *
+from CreditCard.entity.model_factory import * 
+
 
 
 import os, json, pandas as pd
@@ -19,7 +21,7 @@ app = Flask(__name__)
 
 
 LOG_FOLDER_NAME = "logs_project"
-PIPELINE_FOLDER_NAME="project"
+PIPELINE_FOLDER_NAME="CreditCard"
 SAVED_MODELS_DIR_NAME="saved_models"
 
 MODEL_CONFIG_FILE_PATH= os.path.join(ROOT_DIR, CONFIG_DIR, "model.yaml")
@@ -130,12 +132,13 @@ def predict():
     model_config_path = model_train.model_config_file_path
     model_factory = ModelFactory(model_config_path=model_config_path)
     initialized_model_list = model_factory.get_initialized_model_list()
-    
+    model_report_dir = os.path.join(os.getcwd(), 'model_report')
+    cluster_report_dir = os.path.join(model_report_dir, "cluster_custom_model")
     lists_of_model = [initialized_model_list[0]._asdict()['model'].fit(X_train,y_train), initialized_model_list[0]._asdict()['model'].fit(X_train,y_train)]
-    metric_info = evaluate_regression_model(model_list=lists_of_model,X_train=X_train,y_train=y_train, X_test=X_test,y_test=y_test,base_accuracy=0.4)
+    metric_info = evaluate_classification_model(estimators=lists_of_model,X_train=X_train,y_train=y_train, X_test=X_test,y_test=y_test,base_accuracy=0.4,report_dir=cluster_report_dir)
 
     prepro_obj.fit_transform(X)
-    project_model = CreditEstimatorModel(preprocessing_object=prepro_obj, trained_model_object=metric_info.model_object)
+    project_model = EstimatorModel(preprocessing_object=prepro_obj, trained_model_object=metric_info.model_object)
 
     if request.method == 'POST':
         ID = float(request.form['ID'])
